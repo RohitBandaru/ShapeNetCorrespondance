@@ -1,7 +1,20 @@
-import blender_view_render.py
+# http://web.purplefrog.com/~thoth/blender/python-cookbook/import-python.html
+import bpy
+import sys
+import os
 
-def render(ids):
-	# list of ida
-	pass
+dir = os.path.dirname(bpy.data.filepath)
+if not dir in sys.path:
+    sys.path.append(dir )
+    #print(sys.path)
 
-render(views=3, obj_path="models/cube.obj", output_folder='/images')
+import blender_view_render
+
+# this next part forces a reload in case you edit the source after you first start the blender session
+import importlib
+importlib.reload(blender_view_render)
+
+# this is optional and allows you to call the functions without specifying the package name
+from blender_view_render import *
+
+render_model("models/cube.obj", 3, "./images")
