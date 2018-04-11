@@ -12,7 +12,7 @@ out = out.drop(['aligned.dims'],1)
 
 out.to_csv('metadata2.csv', index=False)
 
-'''
+
 import csv
 import json
 import collections
@@ -51,18 +51,13 @@ with open('metadata.csv', 'r') as csvfile:
 
 	for cat_size, cat in cat_lengths:
 		category_counts[cat] = cat_size
-'''
+	'''
 	#print(category_counts)
-	'''with open('category_counts.json', 'w') as file:
+	'''
+	with open('category_counts.json', 'w') as file:
 		json.dump(category_counts, file, indent=2)
 
-	'''
-	'''import numpy as np
-	import matplotlib.pyplot as plt
-	plt.hist(cat_sizes,bins='auto')
-	plt.show()
-	print(cat_sizes)
-	'''
+
 
 
 

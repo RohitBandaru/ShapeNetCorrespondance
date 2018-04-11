@@ -1,17 +1,11 @@
 # https://github.com/panmari/stanford-shapenet-renderer
 
-# A simple script that uses blender to render views of a 
-# single object by rotation the camera around it.
-# Also produces depth map at the same time.
-#
-# Example:
-# blender --background --python mytest.py -- --views 10 /path/to/my.obj
-#
-
 import argparse, sys, os
 import bpy
-import numpy as np
 
+import numpy as np
+import random
+import math
 def render_model(obj_path, views, output_folder):
     depth_scale = 0.20
 
@@ -113,20 +107,7 @@ def render_model(obj_path, views, output_folder):
     lamp2.use_specular = False
     lamp2.energy = 0.015
     bpy.data.objects['Sun'].rotation_euler = bpy.data.objects['Lamp'].rotation_euler
-    bpy.data.objects['Sun'].rotation_euler[0] += 180
-
-    def random_point_on_sphere(r=5):
-        import random
-        import math
-        rand = random.uniform(0, 1)
-        theta = rand*math.pi*2
-        phi = math.acos(rand*2-1)
-
-        x = r*math.cos(theta)*math.sin(phi)
-        y = r*math.sin(theta)*math.sin(phi)
-        z = r*math.cos(phi)
-
-        return (x,y,z)
+    bpy.data.objects['Sun'].rotation_euler[0] += 180        
 
     scene = bpy.context.scene
     scene.render.resolution_x = 600
@@ -149,19 +130,38 @@ def render_model(obj_path, views, output_folder):
     scn.objects.active = b_empty
     cam_constraint.target = b_empty
 
+    import re
+    id = re.findall(r"[\w']+", obj_path)[1]
     model_identifier = os.path.split(os.path.split(obj_path)[0])[1]
-    fp = os.path.join(output_folder, model_identifier, model_identifier)
+    fp = os.path.join(output_folder, model_identifier, id)
+    print(fp)
     scene.render.image_settings.file_format = 'PNG'  # set output format to .png
 
     for output_node in [depthFileOutput, normalFileOutput]:
         output_node.base_path = ''
 
     for i in range(0, views):
-        cam.location = (0,0,-5)#random_point_on_sphere()
+        r = 5
+        rand = random.uniform(0, 1)
+        theta = rand*math.pi*2
+        phi = math.acos(rand*2-1)
+
+        x = r*math.cos(phi)*math.sin(theta)
+        y = r*math.sin(phi)
+        z = r*math.cos(phi)*math.cos(theta)
+
+        R1 = np.array([[1,0,0],[0,np.cos(phi),np.sin(phi)],[0,-np.sin(phi),np.cos(phi)]])
+        R2 = np.array([[np.cos(theta),0,np.sin(theta)],[0,1,0],[-np.sin(theta),0,np.cos(theta)]])
+        R = R2.dot(R1)
+        print(R)
+        rotation_fp = fp + '/{0:03d}'.format(int(i)) + "_rot"
+        np.save(rotation_fp, R)
+
+        cam.location = (x,y,z)
         x,y,z = cam.location
         print("cam location %i, %i, %i" % (x,y,z))
         
-        scene.render.filepath = fp + '{0:03d}'.format(int(i))
+        scene.render.filepath = fp + '/{0:03d}'.format(int(i))
         depthFileOutput.file_slots[0].path = scene.render.filepath + "_depth"
         normalFileOutput.file_slots[0].path = scene.render.filepath + "_normal"
         bpy.ops.render.render(write_still=True)  # render still
@@ -171,5 +171,4 @@ spaceship = "models/b22e56fdf18e2eb8968b65a7871de463.obj"
 shell = "models/b28ae0a9ed0d3bfb28561f010f20bc5.obj"
 cone = "models/b29c96cafb6b21a5df77683b81f29c56.obj"
 if __name__ == "__main__":
-    pass
-    #render_model(cube, 3, "./images")
+    render_model(cube, 3, "./images")
