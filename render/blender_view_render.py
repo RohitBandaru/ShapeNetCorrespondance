@@ -1,13 +1,10 @@
 # https://github.com/panmari/stanford-shapenet-renderer
-
-import argparse, sys, os
 import bpy
-
+import sys, os
 import numpy as np
 import random
 from mathutils import *
 import math
-import analyze_image
 
 def render_model(obj_path, views, output_folder):
     scale = 0.20
@@ -78,8 +75,8 @@ def render_model(obj_path, views, output_folder):
         # normalize object dimensions
         x, y, z = bpy.context.active_object.dimensions
         maxDim = max(x,y,z)
-        scale = 2/maxDim
-        bpy.ops.transform.resize(value=(scale,scale,scale))
+        obj_scale = 2/maxDim
+        bpy.ops.transform.resize(value=(obj_scale, obj_scale, obj_scale ))
         bpy.ops.object.transform_apply(scale=True)
 
         bpy.ops.object.mode_set(mode='EDIT')
@@ -148,19 +145,34 @@ def render_model(obj_path, views, output_folder):
     for i in range(0, views):
         r = 5
         rand = random.uniform(0, 1)
-        theta = rand*math.pi*2
-        phi = math.acos(rand*2-1)
+        if i == 0:
+            theta = 0   #rand*math.pi*2
+            phi = 0.    #math.acos(rand*2-1)
+        elif i == 1:
+            theta = 0.2 #rand*math.pi*2
+            phi = 0.    #math.acos(rand*2-1)
+        elif i == 2:
+            theta = 0.  #rand*math.pi*2
+            phi = 0.1   #math.acos(rand*2-1)
+        elif i == 3:
+            theta = 0.2 #rand*math.pi*2
+            phi = 0.1.  #math.acos(rand*2-1)
+        else:
+            theta = rand*math.pi*2
+            phi = math.acos(rand*2-1)
 
         x = r*math.cos(phi)*math.sin(theta)
         y = r*math.sin(phi)
         z = r*math.cos(phi)*math.cos(theta)
 
-        cam.location = (x,y,z)
+        cam.location = (x,y,z) #(0.,0.,-5.0) 
         (x,y,z) = cam.location
         print("cam location %i, %i, %i" % (x,y,z))
         
         scene.render.filepath = fp + '/{0:03d}'.format(int(i))
-        analyze_image.analyze(r, theta, phi, scene.render.filepath, scale, max_dist)
+
+        metadata = {"r": r, "theta": theta, "phi": phi, "fp": scene.render.filepath, "scale": scale, "max_dist": max_dist}
+        np.save(scene.render.filepath+"_meta.npy", metadata)
 
         depthFileOutput.file_slots[0].path = scene.render.filepath + "_depth"
         normalFileOutput.file_slots[0].path = scene.render.filepath + "_normal"
@@ -172,7 +184,7 @@ spaceship = "models/b22e56fdf18e2eb8968b65a7871de463.obj"
 shell = "models/b28ae0a9ed0d3bfb28561f010f20bc5.obj"
 cone = "models/b29c96cafb6b21a5df77683b81f29c56.obj"
 if __name__ == "__main__":
-    render_model(cube, 1, "./images")
+    render_model(cube, 5, "./images")
 
 
 

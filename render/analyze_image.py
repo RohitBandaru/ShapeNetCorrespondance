@@ -1,24 +1,129 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.misc import imread
+import math
+'''
+a = np.array([	[1,0,0,0],
+				[0,1,0,0],
+				[0,0,1,5]])
+'''
+K = np.array([	[-164.06250213,    0.,           75.        ],
+ 				[   0.,         -164.06250213,   75.        ],
+ 				[   0.,            0.,            0.25      ]])
+K = K*4
 
-def analyze(r, theta, phi, fp, scale, max_dist):
-	R1 = np.array([[1,0,0],[0,np.cos(phi),np.sin(phi)],[0,-np.sin(phi),np.cos(phi)]])
-	R2 = np.array([[np.cos(theta),0,np.sin(theta)],[0,1,0],[-np.sin(theta),0,np.cos(theta)]])
-	R = R2.dot(R1)
-	print(R)
-	rotation_fp = fp + '/{0:03d}'.format(int(i)) + "_rot"
-	np.save(rotation_fp, R)
+Kinv = np.linalg.inv(K)
 
-
-
-def dist_array(path):
+def dist_array(path, scale, max_dist):
 	image = cv2.imread(path, cv2.IMREAD_UNCHANGED)[:,:,0]
 	dist = -(image-1)/scale
 	dist[dist == max_dist/scale] = None
-	#print(np.nanmean(dist))
+	print(np.nanmean(dist))
 	return dist
 
+def analyze(imfp):
+	meta = np.load(imfp + "_meta.npy")
+
+	phi = meta.item()["theta"]#meta.item()["phi"]
+	theta = meta.item()["phi"]#meta.item()["theta"]
+	max_dist = meta.item()["max_dist"]
+	scale = meta.item()["scale"]
+	r = meta.item()["r"]
+	fp = meta.item()["fp"]
+
+	x = r*math.cos(phi)*math.sin(theta)
+	y = r*math.sin(phi)
+	z = r*math.cos(phi)*math.cos(theta)
+
+	number = imfp.split("/")[-1]
+
+	'''
+	ROTATION MATRIX
+	'''
+	R1 = np.array([
+		[1,			0,				0],
+		[0,			np.cos(phi),	np.sin(phi)],
+		[0,			-np.sin(phi),	np.cos(phi)]
+		])
+
+	R2 = np.array([
+		[np.cos(theta),		0,		np.sin(theta)	],
+		[0,					1,		0				],
+		[-np.sin(theta),	0,		np.cos(theta)]
+		])
+
+	R = np.dot(R1,R2)
+
+	print(R)
+	#rotation_fp = fp + '/{0:03d}'.format(int(number)) + "_rot"
+
+	'''
+	LAMBDA
+	'''
+	# coords is array pf [x,y,1]
+	rows = np.arange(600)
+	cols = np.arange(600)
+	coords = np.zeros((600,600,3))
+	coords[..., 0] = rows[:, None]
+	coords[..., 1] = cols
+	coords[:,:,2] = 1
+
+	a = coords.dot(Kinv.T)
+
+	print("coords",coords.shape)
+	dist = dist_array(imfp+"_depth0001.exr", scale, max_dist)
+
+	lmbda = dist/a[:,:,2]
+
+	#c = np.array([0,0,-5]).T
+	c = np.array([-x,-y,-z]).T
+
+	print('c', c)
+	print('phi', phi)
+	print('theta', theta)
+
+	# a = Kinv * (x y 1)
+	# c = (600,600,3)
+	xc = a * lmbda.reshape(600,600,1)
+
+	print(xc.dot(R).shape)
+	#xc = np.transpose(xc, axes=(1, 0, 2))
+	xc = xc[:,:,[1,0,2]]
+	print(c.dot(R).reshape(1,1,3))
+	xw = np.zeros((600,600,3))
+	xw = xc.dot(R) + c.dot(R).reshape(1,1,3)
+	#xw = np.transpose(xw, axes=(1, 0, 2))
+	
+	print("top left",xw[136,136,:])
+	print("top right",xw[136,463,:])
+	print("bottom left",xw[463,136,:])
+	print("bottom right",xw[463,463,:])
+	print("center",xw[300,300,:])
+	
+	plt.imshow(xw[:,:,2])
+	#plt.imshow(xw[:,:,2])
+	#plt.imshow(dist)
+	plt.show()
+
+	
+	
+imfp = "images/models/cube/001"
+analyze(imfp)
+#dist_array(imfp+"_depth0001.exr", .2, 10)
+#print(corners(imfp2))
+
+
+'''
+camera at (0,0,-5)
+top left corner (1,1-1) -> (135, 135)
+top right corner (-1,1-1) -> (135, 464)
+bottom left corner (1,-1-1) -> (464, 135)
+bottom right corner (-1,-1-1) -> (464, 464)
+'''
+
+
+'''
 def corners(path):
 	# returns coordinates of top two corners
 	image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
@@ -45,48 +150,8 @@ def corners(path):
 				bottom_left = False
 	return corners
 
-imfp = "images/models/cube/00"+str(4)+"_depth0001.exr"
-imfp2 = "images/models/cube/00"+str(4)+".png"
-#print(corners(imfp2))
-
-def world_coordinates():
-	a = np.array([	[1,0,0,0],
-					[0,1,0,0],
-					[0,0,1,5]])
-
-	K = np.array([	[-164.06250213,    0.,           75.        ],
-	 				[   0.,         -164.06250213,   75.        ],
-	 				[   0.,            0.,            0.25      ]])
-
-	Kinv = np.linalg.inv(K)
-
-	rows = np.arange(600)
-	cols = np.arange(600)
-	coords = np.zeros((600,600,3))
-	coords[..., 0] = rows[:, None]
-	coords[..., 1] = cols
-	coords[:,:,2] = 1
-	a = coords.dot(Kinv)
-
-	dist = dist_array("images/models/cube/00"+str(4)+"_depth0001.exr")
 
 
-	lmbda = dist/a[:,:,2]
-
-	# a = Kinv * (x y 1)
-	print(np.nanmean(lmbda))
-
-	c = a * lmbda.reshape(600,600,1)
-
-
-	R = np.load("images/models/cube/004_rot.npy")
-	xw = np.sum(c.dot(R),axis=2) - R.dot(np.array([0,0,5]).T)
-	print(xw.shape)
-	print(xw[135+5,135+5])
-	plt.imshow(xw)
-	plt.show()
-
-'''
 left = np.array([[1,1,-1,1]]).T
 right = np.array([[-1,1,-1,1]]).T
 
@@ -98,15 +163,6 @@ cm = np.array([	[135,135,464,465],
 				[1,  1,  1,  1. ]])
 '''
 
-
-'''
-camera at (0,0,-5)
-top left corner (1,1-1) -> (135, 135)
-top right corner (-1,1-1) -> (135, 464)
-bottom left corner (1,-1-1) -> (464, 135)
-bottom right corner (-1,-1-1) -> (464, 464)
-
-'''
 
 
 '''
