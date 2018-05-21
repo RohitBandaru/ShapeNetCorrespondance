@@ -1,4 +1,5 @@
 import cv2
+from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.misc import imread
@@ -16,6 +17,7 @@ K = K*4
 Kinv = np.linalg.inv(K)
 
 def dist_array(path, scale, max_dist):
+	print('here')
 	image = cv2.imread(path, cv2.IMREAD_UNCHANGED)[:,:,0]
 	dist = -(image-1)/scale
 	dist[dist == max_dist/scale] = None
@@ -25,8 +27,8 @@ def dist_array(path, scale, max_dist):
 def analyze(imfp):
 	meta = np.load(imfp + "_meta.npy")
 
-	phi = meta.item()["theta"]#meta.item()["phi"]
-	theta = meta.item()["phi"]#meta.item()["theta"]
+	phi = meta.item()["phi"]
+	theta = meta.item()["theta"]
 	max_dist = meta.item()["max_dist"]
 	scale = meta.item()["scale"]
 	r = meta.item()["r"]
@@ -41,21 +43,30 @@ def analyze(imfp):
 	'''
 	ROTATION MATRIX
 	'''
-	R1 = np.array([
-		[1,			0,				0],
-		[0,			np.cos(phi),	np.sin(phi)],
-		[0,			-np.sin(phi),	np.cos(phi)]
-		])
-
-	R2 = np.array([
-		[np.cos(theta),		0,		np.sin(theta)	],
-		[0,					1,		0				],
-		[-np.sin(theta),	0,		np.cos(theta)]
-		])
-
-	R = np.dot(R1,R2)
-
+	center = np.array([r*np.cos(phi)*np.sin(theta), r*np.sin(phi), r*np.cos(phi)*np.cos(theta)])
+	camera_zaxis = -center / np.linalg.norm(center)
+	zaxis = np.array([0,0,1])
+	camera_yaxis = zaxis - np.dot(camera_zaxis, zaxis)*camera_zaxis
+	camera_yaxis = camera_yaxis / np.linalg.norm(camera_yaxis)
+	camera_xaxis = np.cross(camera_yaxis, camera_zaxis)
+	camera_xaxis = camera_xaxis / np.linalg.norm(camera_xaxis)
+	R = np.zeros((3,3))
+	R[:,0] = camera_xaxis
+	R[:,1] = camera_yaxis
+	R[:,2] = camera_zaxis
+	# R1 = np.array([[np.cos(-phi), 0, np.sin(-phi)],[0,1,0],[-np.sin(-phi),0,np.cos(-phi)]])
+	# #R2 = np.array([[1,0,0],[0,np.cos(-theta),np.sin(-theta)],[0,-np.sin(-theta),np.cos(-theta)]])
+	# I = np.eye(3)
+	# I[2,2]=-1
+	# #R1 = np.array([[1,0,0],[0, np.cos(phi), np.sin(phi)],[0,-np.sin(phi),np.cos(phi)]])
+	# #R1 = np.array([[1,0,0],[0, np.cos(phi), np.sin(phi)],[0,-np.sin(phi),np.cos(phi)]])
+	# R2 = np.array([[np.cos(-theta), 0, np.sin(-theta)],[0,1,0],[-np.sin(-theta),0,np.cos(-theta)]])
+	# P = np.array([[0,1,0],[0,0,1],[1,0,0]])
+	# R = P.dot(R1.dot(R2  .dot(I)))
+	print(center)
 	print(R)
+	print(np.dot(R,R.T))
+	#R = R.T
 	#rotation_fp = fp + '/{0:03d}'.format(int(number)) + "_rot"
 
 	'''
@@ -71,15 +82,15 @@ def analyze(imfp):
 
 	a = coords.dot(Kinv.T)
 
-	print("coords",coords.shape)
+	#print("coords",coords.shape)
 	dist = dist_array(imfp+"_depth0001.exr", scale, max_dist)
 
 	lmbda = dist/a[:,:,2]
 
-	#c = np.array([0,0,-5]).T
-	c = np.array([-x,-y,-z]).T
+	c = np.array([0,-5,0]).T
+	#c = np.array([-x,-y,-z]).T
 
-	print('c', c)
+	#print('c', c)
 	print('phi', phi)
 	print('theta', theta)
 
@@ -92,24 +103,36 @@ def analyze(imfp):
 	xc = xc[:,:,[1,0,2]]
 	print(c.dot(R).reshape(1,1,3))
 	xw = np.zeros((600,600,3))
-	xw = xc.dot(R) + c.dot(R).reshape(1,1,3)
+	for i in range(600):
+		for j in range(600):
+			xw[i,j,:] = R.dot(xc[i,j,:]) #+ c.dot(R).reshape(1,1,3)
+	#xw = xc.dot(R) + c.dot(R).reshape(1,1,3)
 	#xw = np.transpose(xw, axes=(1, 0, 2))
-	
+
 	print("top left",xw[136,136,:])
 	print("top right",xw[136,463,:])
 	print("bottom left",xw[463,136,:])
 	print("bottom right",xw[463,463,:])
 	print("center",xw[300,300,:])
-	
-	plt.imshow(xw[:,:,2])
+	np.savez(imfp+'.npz', xw=xw, xc=xc, R=R, theta=theta, phi=phi)
+
+
+	#plt.imshow(xw[:,:,2])
 	#plt.imshow(xw[:,:,2])
 	#plt.imshow(dist)
-	plt.show()
+	#plt.show()
 
-	
-	
+
+
+imfp = "images/models/cube/000"
+analyze(imfp)
 imfp = "images/models/cube/001"
 analyze(imfp)
+imfp = "images/models/cube/002"
+analyze(imfp)
+imfp = "images/models/cube/003"
+analyze(imfp)
+
 #dist_array(imfp+"_depth0001.exr", .2, 10)
 #print(corners(imfp2))
 

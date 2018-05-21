@@ -71,7 +71,9 @@ def render_model(obj_path, views, output_folder):
         if object.name in ['Camera', 'Lamp']:
             continue
         bpy.context.scene.objects.active = object
-
+        object.active_material.alpha = 1.0
+        for h in object.material_slots:
+            h.material.alpha = 1.0
         # normalize object dimensions
         x, y, z = bpy.context.active_object.dimensions
         maxDim = max(x,y,z)
@@ -143,23 +145,10 @@ def render_model(obj_path, views, output_folder):
         output_node.base_path = ''
 
     for i in range(0, views):
-        r = 5
+        r = 3
         rand = random.uniform(0, 1)
-        if i == 0:
-            theta = 0   #rand*math.pi*2
-            phi = 0.    #math.acos(rand*2-1)
-        elif i == 1:
-            theta = 0.2 #rand*math.pi*2
-            phi = 0.    #math.acos(rand*2-1)
-        elif i == 2:
-            theta = 0.  #rand*math.pi*2
-            phi = 0.1   #math.acos(rand*2-1)
-        elif i == 3:
-            theta = 0.2 #rand*math.pi*2
-            phi = 0.1.  #math.acos(rand*2-1)
-        else:
-            theta = rand*math.pi*2
-            phi = math.acos(rand*2-1)
+        theta = rand*math.pi*2
+        phi = math.acos(rand*2-1)
 
         x = r*math.cos(phi)*math.sin(theta)
         y = r*math.sin(phi)
@@ -183,8 +172,9 @@ cube = "models/cube.obj"
 spaceship = "models/b22e56fdf18e2eb8968b65a7871de463.obj"
 shell = "models/b28ae0a9ed0d3bfb28561f010f20bc5.obj"
 cone = "models/b29c96cafb6b21a5df77683b81f29c56.obj"
+obj = "models/b2b0dd16870742a2fc41e59f3518733.obj"
 if __name__ == "__main__":
-    render_model(cube, 5, "./images")
+    render_model(spaceship, 1, "./images")
 
 
 

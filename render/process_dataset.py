@@ -1,5 +1,6 @@
 import pandas as pd
 import json
+import csv
 # http://web.purplefrog.com/~thoth/blender/python-cookbook/import-python.html
 '''import bpy
 import sys
@@ -21,15 +22,19 @@ def render_category(category_name, views, number_of_models):
 	# get ids
 	ids = csv_input[csv_input["category"] == category_name]["fullId"]
 	number_of_models = min(number_of_models, ids.shape[0])
-
-	for i,id in enumerate(ids):
-		if(i >= number_of_models):
-			break
-		print("rendering " + id)
+	with open("models.csv", "a") as csv_file:
+		writer = csv.writer(csv_file)
+		for i,id in enumerate(ids):
+			if(i >= number_of_models):
+				break
+			print("rendering " + id)
+			csv_file.write(id+"\n")
 		#render_model("models/"+id+".obj", views, "./images")
 
 with open('category_counts.json', 'r') as file:
 	data = json.load(file)
+	f = open("models.csv", "w+")
+	f.close()
 	for row in data:
 		count = data[row]
 		if(count>50):
